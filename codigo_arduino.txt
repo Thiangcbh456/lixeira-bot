@@ -1,0 +1,22 @@
+#define TRIG_PIN 2
+#define ECHO_PIN 3
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+}
+
+void loop() {
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  long duracao = pulseIn(ECHO_PIN, HIGH);
+  float distancia = duracao * 0.034 / 2;  // Converte em cm
+
+  Serial.println(distancia);  // Envia distância via Serial
+  delay(1000);  // Mede a cada 1 segundo
+}
