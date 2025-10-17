@@ -1,5 +1,6 @@
 #define TRIG_PIN 2
 #define ECHO_PIN 3
+#define LIMITE_CHEIO 10  // distância em cm para considerar a lixeira cheia
 
 void setup() {
   Serial.begin(9600);
@@ -8,15 +9,29 @@ void setup() {
 }
 
 void loop() {
+  // Envia pulso ultrassônico
   digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
   digitalWrite(TRIG_PIN, HIGH);
   delayMicroseconds(10);
   digitalWrite(TRIG_PIN, LOW);
 
+  // Mede duração do eco
   long duracao = pulseIn(ECHO_PIN, HIGH);
-  float distancia = duracao * 0.034 / 2;  // Converte em cm
+  float distancia = duracao * 0.034 / 2;  // Converte para centímetros
 
-  Serial.println(distancia);  // Envia distância via Serial
-  delay(1000);  // Mede a cada 1 segundo
+  // Exibe resultado
+  Serial.print("Distância: ");
+  Serial.print(distancia);
+  Serial.println(" cm");
+
+  // Verifica se está cheia
+  if (distancia <= LIMITE_CHEIO) {
+    Serial.println("🚨 Lixeira cheia!");
+  } else {
+    Serial.println("✅ Lixeira com espaço.");
+  }
+
+  delay(30000);  // Mede a cada 30 segundos
 }
+
