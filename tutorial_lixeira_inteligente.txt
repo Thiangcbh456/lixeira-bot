@@ -1,0 +1,201 @@
+📘 Tutorial: Como funciona o código da Lixeira Inteligente com Sensor Ultrassônico
+
+Este código transforma uma lixeira comum em uma lixeira inteligente, capaz de:
+
+Medir constantemente a distância entre o sensor e o lixo.
+
+Informar via Serial se a lixeira está cheia ou ok.
+
+Fazer o LED piscar quando estiver cheia.
+
+Enviar leituras suavizadas para evitar medições malucas.
+
+Manter estabilidade mesmo com leituras erradas ou instáveis.
+
+Vamos por partes! 👇
+
+
+
+
+
+1️⃣ Componentes usados
+
+O código utiliza:
+
+Sensor Ultrassônico HC-SR04
+
+TRIG → envia o pulso
+
+ECHO → recebe o pulso (eco)
+
+LED → Pisca quando a lixeira está cheia
+
+Arduino (uno, nano etc.)
+
+Pinos utilizados:
+
+Componente	Pino Arduino
+TRIG	10
+ECHO	9
+LED	12
+
+
+
+
+2️⃣ O que é considerado “lixeira cheia”?
+const float DISTANCIA_CHEIA = 10.0; // cm
+Se o lixo chega a 10cm ou menos do sensor, a lixeira é considerada cheia.
+
+
+
+
+3️⃣ Como a leitura da distância funciona
+
+O ultrassônico funciona assim:
+
+O Arduino envia um pulso pelo pino TRIG.
+
+O pulso bate no lixo e volta como eco.
+
+O pino ECHO recebe o tempo desse retorno.
+
+O código converte esse tempo em centímetros:
+
+return duracao / 58.2;
+
+
+Isso é padrão do HC-SR04.
+
+
+
+
+4️⃣ Leitura mais estável: média + suavização
+
+Para evitar leituras malucas como “3 cm”, “97 cm”, “0 cm”, o código:
+
+✔ Faz 10 leituras rápidas
+✔ Ignora leituras zeradas
+✔ Calcula a média
+✔ Aplica suavização exponencial (EMA)
+
+Trecho:
+
+distanciaFiltrada = (alpha * media) + ((1 - alpha) * distanciaFiltrada);
+
+
+Isso mantém o valor estável, ideal para monitoramento real.
+
+
+
+
+
+5️⃣ Envio contínuo para o Python
+
+O código manda sempre a distância filtrada:
+
+Serial.print("DISTANCIA:");
+Serial.print(distanciaFiltrada, 2);
+Serial.println(" cm");
+O Python pode ler essas mensagens continuamente.
+
+
+
+
+
+6️⃣ Detecção de lixeira cheia
+bool cheiaAgora = distanciaFiltrada <= DISTANCIA_CHEIA;
+
+
+Se ficar cheia, o Arduino envia:
+
+LIXEIRA_CHEIA
+
+
+Quando volta ao normal:
+
+LIXEIRA_OK
+
+
+
+
+
+7️⃣ LED piscando quando cheia
+
+Quando cheia, o LED:
+
+Acende
+
+Apaga
+
+A cada 500 ms
+
+Isso cria um alerta visual:
+
+estadoLed = !estadoLed;
+digitalWrite(LED, estadoLed);
+
+
+
+
+
+
+8️⃣ Proteção contra “drift”
+
+A cada 1 minuto, o Arduino reduz gradualmente o valor filtrado:
+
+distanciaFiltrada *= 0.5;
+Isso impede que erros acumulados deixem o sistema doido com o tempo.
+
+
+
+
+
+9️⃣ Função medirDistancia()
+
+Essa função é o "coração" do sensor:
+
+pulseIn(ECHO, HIGH, TIMEOUT);
+
+Se passar do timeout de 30 ms → retorna zero.
+
+Isso evita travamentos caso não haja eco.
+
+
+
+
+
+
+🔟 Resumo do fluxo do sistema (simples)
+
+Mede a distância 10 vezes
+
+Faz média e suavização
+
+Envia leitura para o Python
+
+Se distância ≤ 10cm → lixeira cheia
+
+LED começa a piscar
+
+Se voltar a ficar longe → normaliza
+
+Reinicia suavização a cada 1 min
+
+
+
+
+
+
+🟢 Em outras palavras...
+
+Esse código garante que:
+
+As leituras não variem bruscamente.
+
+O Python saiba exatamente quando a lixeira está cheia.
+
+O LED avise localmente.
+
+O sistema nunca trave mesmo se o sensor errar.
+
+É um sistema confiável, estável e inteligente para monitorar lixeiras.

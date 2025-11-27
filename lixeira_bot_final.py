@@ -11,7 +11,7 @@ USUARIOS_FILE = "usuarios.txt"  # Arquivo para salvar chat_ids dos usuários
 
 # --- CONFIGURAÇÕES DA LIXEIRA ---
 DISTANCE_THRESHOLD = 15  # Distância em cm para considerar cheia
-TEMPO_LEITURA = 30        # Tempo entre leituras em segundos
+TEMPO_LEITURA = 15        # Tempo entre leituras em segundos
 mensagem_enviada = False  # Evita envio repetido enquanto lixeira cheia
 
 # --- Carrega usuários já registrados ---

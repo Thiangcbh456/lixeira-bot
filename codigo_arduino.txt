@@ -1,37 +1,105 @@
-#define TRIG_PIN 2
-#define ECHO_PIN 3
-#define LIMITE_CHEIO 10  // distância em cm para considerar a lixeira cheia
+// === Lixeira Inteligente com Sensor Ultrassônico ===
+// Envia leituras contínuas e eventos de estado via Serial
+
+const int TRIG = 10;
+const int ECHO = 9;
+const int LED  = 12;     // LED indicando lixeira cheia
+
+const int NUM_LEITURAS   = 10;
+const unsigned long TIMEOUT = 30000;   // tempo de espera do sensor ultrassônico
+const float DISTANCIA_CHEIA = 10.0;    // cm - distância limite para considerar cheia
+
+float distanciaFiltrada = 0;
+float alpha = 0.3;       // fator de suavização exponencial
+
+unsigned long ultimoReset   = 0;
+const unsigned long intervaloReset = 60000; // 1 minuto
+
+// Controle do LED
+unsigned long ultimoPiscar   = 0;
+const unsigned long intervaloPiscar = 500;
+bool estadoLed = LOW;
+
+// Estados
+bool estadoAnteriorCheia = false;
 
 void setup() {
+  pinMode(TRIG, OUTPUT);
+  pinMode(ECHO, INPUT);
+  pinMode(LED, OUTPUT);
+
   Serial.begin(9600);
-  pinMode(TRIG_PIN, OUTPUT);
-  pinMode(ECHO_PIN, INPUT);
+  Serial.println("Lixeira inteligente inicializada");
+  delay(500);
 }
 
 void loop() {
-  // Envia pulso ultrassônico
-  digitalWrite(TRIG_PIN, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG_PIN, LOW);
-
-  // Mede duração do eco
-  long duracao = pulseIn(ECHO_PIN, HIGH);
-  float distancia = duracao * 0.034 / 2;  // Converte para centímetros
-
-  // Exibe resultado
-  Serial.print("Distância: ");
-  Serial.print(distancia);
-  Serial.println(" cm");
-
-  // Verifica se está cheia
-  if (distancia <= LIMITE_CHEIO) {
-    Serial.println("🚨 Lixeira cheia!");
-  } else {
-    Serial.println("✅ Lixeira com espaço.");
+  // Reset gradual a cada minuto
+  if (millis() - ultimoReset >= intervaloReset) {
+    distanciaFiltrada *= 0.5; // reduz metade do valor para evitar drift
+    ultimoReset = millis();
   }
 
-  delay(30000);  // Mede a cada 30 segundos
+  // Faz múltiplas leituras rápidas e calcula média, ignorando zeros
+  float soma = 0;
+  int contagemValida = 0;
+  for (int i = 0; i < NUM_LEITURAS; i++) {
+    float d = medirDistancia();
+    if (d > 0) {
+      soma += d;
+      contagemValida++;
+    }
+    delay(40);  // leituras mais rápidas (antes era 100)
+  }
+
+  float media = (contagemValida > 0) ? (soma / contagemValida) : distanciaFiltrada;
+
+  // Suavização exponencial
+  distanciaFiltrada = (alpha * media) + ((1 - alpha) * distanciaFiltrada);
+
+  // ----------- ENVIO CONTÍNUO PARA PYTHON -------------
+  Serial.print("DISTANCIA:");
+  Serial.print(distanciaFiltrada, 2);
+  Serial.println(" cm");
+  // ----------------------------------------------------
+
+  // Verifica estado da lixeira
+  bool cheiaAgora = (distanciaFiltrada > 0 && distanciaFiltrada <= DISTANCIA_CHEIA);
+
+  if (cheiaAgora) {
+    if (!estadoAnteriorCheia) {
+      Serial.println("LIXEIRA_CHEIA");
+    }
+
+    // Pisca o LED
+    if (millis() - ultimoPiscar >= intervaloPiscar) {
+      estadoLed = !estadoLed;
+      digitalWrite(LED, estadoLed);
+      ultimoPiscar = millis();
+    }
+
+  } else {
+    if (estadoAnteriorCheia) {
+      Serial.println("LIXEIRA_OK");
+    }
+    digitalWrite(LED, LOW);
+    estadoLed = LOW;
+  }
+
+  estadoAnteriorCheia = cheiaAgora;
 }
 
+// -------------------------------------------------------------
+
+float medirDistancia() {
+  digitalWrite(TRIG, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG, LOW);
+
+  long duracao = pulseIn(ECHO, HIGH, TIMEOUT);
+  if (duracao == 0) return 0; // sem eco, sem leitura
+
+  return duracao / 58.2; // converte microssegundos para cm
+}

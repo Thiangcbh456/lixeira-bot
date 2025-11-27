@@ -1,0 +1,211 @@
+🧠 Tutorial Simples – Sistema Python da Lixeira Inteligente
+
+Este script Python funciona como um monitor em tempo real que lê dados do Arduino e envia alertas automáticos no Telegram quando a lixeira fica cheia.
+
+Vamos dividir por partes para entender.
+
+1️⃣ O que esse programa faz?
+
+✔ Detecta automaticamente a porta do Arduino
+✔ Lê o texto que o Arduino envia pela porta Serial
+✔ Entende quando a lixeira está “CHEIA” ou “OK”
+✔ Envia alerta para todos os usuários cadastrados no Telegram
+✔ Reenvia alertas periódicos enquanto a lixeira continua cheia
+✔ Registra todos os usuários que enviaram qualquer mensagem ao bot
+
+
+
+
+
+2️⃣ Como o bot sabe para quem enviar?
+
+Quando alguém envia uma mensagem para o bot (mesmo que “oi”), o script:
+
+pega o chat_id
+
+salva em usuarios.txt
+
+adiciona à lista de usuários registrados
+
+Depois disso, o bot sempre enviará alertas para essa pessoa.
+
+
+
+
+
+3️⃣ Como ele encontra o Arduino
+
+A função:
+
+encontrar_porta_arduino()
+
+
+Procura automaticamente portas como:
+
+“Arduino”
+
+“CH340”
+
+“USB-SERIAL”
+
+“CDC ACM”
+
+Se achar, tenta abrir.
+Se não achar, testa todas as portas até encontrar uma que funcione.
+
+💡 Isso evita que você tenha que ficar mudando COM3, COM4, etc.
+
+
+
+
+
+4️⃣ Como o Python lê os dados do Arduino
+
+O Arduino manda coisas como:
+
+DISTANCIA: 12.30 cm
+LIXEIRA_CHEIA
+LIXEIRA_OK
+
+
+O Python:
+
+Lê todas as linhas enviadas
+
+Junta partes incompletas
+
+Identifica três tipos de linha:
+
+A) Leituras contínuas
+if linha.startswith("DISTANCIA:"):
+
+
+Mostra no console:
+
+→ Distância: 12.30 cm
+
+B) Evento "LIXEIRA_CHEIA"
+
+Quando a linha for exatamente isso:
+
+LIXEIRA_CHEIA
+
+
+O Python:
+
+marca lixeira_cheia = True
+
+envia alerta para todos os usuários
+
+registra o momento do alerta
+
+C) Evento "LIXEIRA_OK"
+
+O Python faz:
+
+lixeira_cheia = False
+
+apenas informa no console
+
+para de reenviar alertas
+
+
+
+
+
+5️⃣ Reenvio automático enquanto estiver cheia
+
+Mesmo sem novas mensagens do Arduino, o Python verifica:
+
+if lixeira_cheia:
+    # reenviar alerta a cada INTERVALO_ALERTA
+
+
+Padrão: 5 segundos
+
+📌 Por quê?
+Para garantir que o alerta não seja perdido pelo Telegram.
+
+
+
+
+
+6️⃣ Como o Python envia mensagens pelo Telegram
+
+O envio é feito por chamadas HTTP usando requests.
+
+Envio do texto:
+requests.get(
+    f"https://api.telegram.org/bot{TOKEN}/sendMessage",
+    params={"chat_id": chat_id, "text": MENSAGEM_CHEIA}
+)
+
+Envio do áudio (caso exista um OGG):
+requests.post(
+    f"https://api.telegram.org/bot{TOKEN}/sendVoice",
+    files={'voice': open(OGG_FILE, 'rb')},
+    data={'chat_id': chat_id}
+)
+
+
+
+
+
+7️⃣ Ciclo principal
+
+O programa fica em loop infinito:
+
+Atualiza usuários usando getUpdates
+
+Lê o Arduino
+
+Processa linhas
+
+Reenvia alertas se a lixeira ainda estiver cheia
+
+Aguarda 20 ms para não travar a CPU
+
+Ele continua rodando até você apertar CTRL + C.
+
+
+
+
+
+8️⃣ Arquivos usados pelo sistema
+📄 usuarios.txt
+
+Guarda IDs das pessoas que interagiram com o bot.
+
+🔊 lixeira_cheia.ogg
+
+Áudio opcional enviado junto com o alerta.
+
+🔌 Porta Serial
+
+Detectada automaticamente.
+
+
+
+
+
+9️⃣ Como usar o sistema
+
+Conecte o Arduino no PC
+
+Rode o Python:
+
+python seu_arquivo.py
+
+
+Abra o Telegram e mande qualquer mensagem para o bot
+
+A lixeira chega ao nível crítico
+
+O Arduino envia LIXEIRA_CHEIA
+
+O Python detecta e envia alertas
+
+Quando o lixo é retirado → LIXEIRA_OK
+
+Pronto.
+Você tem um sistema de coleta inteligente funcional e automatizado.
